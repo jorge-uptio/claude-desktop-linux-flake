@@ -136,6 +136,8 @@ in
         --add-flags "$out/lib/$pname/app.asar" \
         --add-flags "--openDevTools" \
         --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
+        --add-flags "--disable-gpu-vsync" \
+        --add-flags "--disable-frame-rate-limit" \
         --set ELECTRON_OVERRIDE_DIST_PATH ${electron}/libexec/electron
 
       runHook postInstall
