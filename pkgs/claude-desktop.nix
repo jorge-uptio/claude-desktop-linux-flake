@@ -116,12 +116,27 @@ in
       mkdir -p $out/share/applications
       install -Dm0644 {${desktopItem},$out}/share/applications/$pname.desktop
 
+      # Copy localization files to Electron's resources directory
+      mkdir -p $out/lib/$pname/locales
+      
+      # Find all localization files and copy them
+      cd $TMPDIR/build
+      for jsonFile in lib/net45/resources/*.json; do
+        basename=$(basename "$jsonFile")
+        # Extract locale from filename (assuming format like en-US.json)
+        locale=$(echo "$basename" | cut -d'.' -f1)
+        if [[ -n "$locale" ]]; then
+          cp "$jsonFile" $out/lib/$pname/locales/$basename
+        fi
+      done
+
       # Create wrapper
       mkdir -p $out/bin
       makeWrapper ${electron}/bin/electron $out/bin/$pname \
         --add-flags "$out/lib/$pname/app.asar" \
         --add-flags "--openDevTools" \
-        --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}"
+        --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
+        --set ELECTRON_OVERRIDE_DIST_PATH ${electron}/libexec/electron
 
       runHook postInstall
     '';
