@@ -84,7 +84,7 @@ in
       cp ${patchy-cnb}/lib/patchy-cnb.*.node app.asar.contents/node_modules/claude-native/claude-native-binding.node
       cp ${patchy-cnb}/lib/patchy-cnb.*.node app.asar.unpacked/node_modules/claude-native/claude-native-binding.node
 
-      # .vite/build/index.js in the app.asar expects the Tray icons to be
+      # .vite/build/index.js in the app.asar expects the Tray icons t do be
       # placed inside the app.asar.
       mkdir -p app.asar.contents/resources
       ls ../lib/net45/resources/
@@ -129,16 +129,21 @@ in
           cp "$jsonFile" $out/lib/$pname/locales/$basename
         fi
       done
+      
+      # Create a symbolic link to Electron's resources directory
+      # This is needed because the app looks for localization files in specific paths
+      mkdir -p $out/lib/$pname/resources
+      ln -s ${electron}/libexec/electron/resources/en-US.json $out/lib/$pname/resources/
 
       # Create wrapper
       mkdir -p $out/bin
       makeWrapper ${electron}/bin/electron $out/bin/$pname \
         --add-flags "$out/lib/$pname/app.asar" \
-        --add-flags "--openDevTools" \
-        --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}" \
         --add-flags "--disable-gpu-vsync" \
         --add-flags "--disable-frame-rate-limit" \
-        --set ELECTRON_OVERRIDE_DIST_PATH ${electron}/libexec/electron
+        --add-flags "\''${WAYLAND_DISPLAY:+--ozone-platform=wayland --enable-features=WaylandWindowDecorations}" \
+        --set ELECTRON_OVERRIDE_DIST_PATH ${electron}/libexec/electron \
+        --set ELECTRON_ENABLE_LOGGING 1
 
       runHook postInstall
     '';
