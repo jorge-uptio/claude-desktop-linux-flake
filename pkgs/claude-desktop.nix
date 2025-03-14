@@ -130,10 +130,16 @@ in
         fi
       done
       
-      # Create a symbolic link to Electron's resources directory
+      # Create the resources directory and copy the localization file
       # This is needed because the app looks for localization files in specific paths
       mkdir -p $out/lib/$pname/resources
-      ln -s ${electron}/libexec/electron/resources/en-US.json $out/lib/$pname/resources/
+      # Copy the file directly instead of using a symlink to avoid broken links
+      if [ -f ${electron}/libexec/electron/resources/en-US.json ]; then
+        cp -f ${electron}/libexec/electron/resources/en-US.json $out/lib/$pname/resources/
+      else
+        # Create an empty file as fallback if the source doesn't exist
+        echo "{}" > $out/lib/$pname/resources/en-US.json
+      fi
 
       # Create wrapper
       mkdir -p $out/bin
