@@ -133,6 +133,7 @@ in
       # Create the resources directory and copy the localization file
       # This is needed because the app looks for localization files in specific paths
       mkdir -p $out/lib/$pname/resources
+      
       # Copy the file directly instead of using a symlink to avoid broken links
       if [ -f ${electron}/libexec/electron/resources/en-US.json ]; then
         cp -f ${electron}/libexec/electron/resources/en-US.json $out/lib/$pname/resources/
@@ -140,16 +141,39 @@ in
         # Create an empty file as fallback if the source doesn't exist
         echo "{}" > $out/lib/$pname/resources/en-US.json
       fi
+      
+      # Create a symlink structure in /tmp that mimics the electron resource path
+      # The app is hardcoded to look for files in the electron store path
+      mkdir -p $out/lib/$pname/electron-shim/libexec/electron/resources
+      cp $out/lib/$pname/resources/en-US.json $out/lib/$pname/electron-shim/libexec/electron/resources/
 
       # Create wrapper
       mkdir -p $out/bin
+      # Create a patch script to find the correct electron store path at runtime
+      cat > $out/lib/$pname/patch-electron-path.sh <<EOF
+#!/bin/sh
+# This script patches the claude-desktop app to use the current electron store path
+# It's needed because the app hardcodes paths to the electron binary
+
+# Get the current electron store path from the environment
+ELECTRON_PATH=\${ELECTRON_OVERRIDE_DIST_PATH:-${electron}/libexec/electron}
+
+# Create the resources directory in the current electron path if it doesn't exist
+mkdir -p \$ELECTRON_PATH/resources
+
+# Copy our localization files to the correct location
+cp $out/lib/$pname/resources/en-US.json \$ELECTRON_PATH/resources/
+EOF
+      chmod +x $out/lib/$pname/patch-electron-path.sh
+
       makeWrapper ${electron}/bin/electron $out/bin/$pname \
         --add-flags "$out/lib/$pname/app.asar" \
         --add-flags "--disable-gpu-vsync" \
         --add-flags "--disable-frame-rate-limit" \
         --add-flags "\''${WAYLAND_DISPLAY:+--ozone-platform=wayland --enable-features=WaylandWindowDecorations}" \
         --set ELECTRON_OVERRIDE_DIST_PATH ${electron}/libexec/electron \
-        --set ELECTRON_ENABLE_LOGGING 1
+        --set ELECTRON_ENABLE_LOGGING 1 \
+        --run "$out/lib/$pname/patch-electron-path.sh"
 
       runHook postInstall
     '';
