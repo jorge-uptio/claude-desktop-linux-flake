@@ -12,6 +12,7 @@ This is an unofficial Nix flake that enables running Anthropic's Claude Desktop 
 ## Key Commands
 
 ### Building and Running Claude Desktop
+
 ```bash
 # One-time run
 NIXPKGS_ALLOW_UNFREE=1 nix run github:k3d3/claude-desktop-linux-flake --impure
@@ -24,6 +25,7 @@ nix build .#claude-desktop-with-fhs
 ```
 
 ### Developing patchy-cnb
+
 ```bash
 cd patchy-cnb
 npm run build         # Build release version
@@ -34,6 +36,7 @@ npm test             # Run tests
 ## Architecture
 
 The project works by:
+
 1. Downloading Claude Desktop's Windows installer
 2. Extracting the Electron app contents
 3. Replacing Windows-specific `claude-native-bindings` with `patchy-cnb` stubs
