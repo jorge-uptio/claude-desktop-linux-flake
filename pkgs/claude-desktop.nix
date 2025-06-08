@@ -17,7 +17,7 @@
   pname = "claude-desktop";
   version = "0.10.14";
   srcExe = fetchurl {
-    # NOTE: `?v=0.10.0` doesn't actually request a specific version. It's only being used here as a cache buster.
+    # NOTE: `?v=0.10.14` doesn't actually request a specific version. It's only being used here as a cache buster.
     url = "https://storage.googleapis.com/osprey-downloads-c02f6a0d-347c-492b-a752-3e0651722e97/nest-win-x64/Claude-Setup-x64.exe?v=0.10.14";
     hash = "sha256-NtEA27ZUVSi+LvLHoKUOASMVcO22r+QZ0+l46OMSRm8=";
   };
