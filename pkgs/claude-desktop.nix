@@ -15,11 +15,11 @@
   glib-networking
 }: let
   pname = "claude-desktop";
-  version = "0.9.3";
+  version = "0.10.14";
   srcExe = fetchurl {
-    # Direct URL to get the latest version
-    url = "https://storage.googleapis.com/osprey-downloads-c02f6a0d-347c-492b-a752-3e0651722e97/nest-win-x64/Claude-Setup-x64.exe";
-    sha256 = "sha256-OofXsRNVBueiewCCfYOwGqlsZECYtWWRTg4Wu+hGAnE=";
+    # NOTE: `?v=0.10.0` doesn't actually request a specific version. It's only being used here as a cache buster.
+    url = "https://storage.googleapis.com/osprey-downloads-c02f6a0d-347c-492b-a752-3e0651722e97/nest-win-x64/Claude-Setup-x64.exe?v=0.10.14";
+    hash = "sha256-NtEA27ZUVSi+LvLHoKUOASMVcO22r+QZ0+l46OMSRm8=";
   };
 in
   stdenvNoCC.mkDerivation rec {
@@ -196,6 +196,8 @@ in
         --set GIO_EXTRA_MODULES "${glib-networking}/lib/gio/modules" \
         --set GDK_BACKEND "wayland,x11" \
         --set CHROME_DESKTOP "Claude.desktop" \
+        --set-default GTK_THEME "\''${GTK_THEME:-Adwaita:dark}" \
+        --set-default COLOR_SCHEME_PREFERENCE "\''${COLOR_SCHEME_PREFERENCE:-dark}" \
         --prefix XDG_DATA_DIRS : "$out/share"
 
       runHook postInstall
