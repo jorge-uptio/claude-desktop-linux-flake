@@ -74,6 +74,44 @@ This flake includes fixes for proper GNOME desktop integration:
 
 The integration has been thoroughly tested on GNOME 48 with Wayland and works reliably across different installation methods (local build, Home Manager, system packages).
 
+## MCP Server Setup
+
+This flake includes an FHS shell environment for installing MCP servers. To set up Home Assistant integration:
+
+### Install MCP Proxy
+```bash
+nix run .#claude-desktop-shell
+uv tool install mcp-proxy
+export PATH="/home/tom/.local/bin:$PATH"
+```
+
+### Configure Claude Desktop
+Create `/home/tom/.config/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "Home Assistant": {
+      "command": "/home/tom/.local/bin/mcp-proxy",
+      "env": {
+        "SSE_URL": "https://your-ha-instance.com/mcp_server/sse",
+        "API_ACCESS_TOKEN": "your_long_lived_access_token"
+      }
+    }
+  }
+}
+```
+
+### Enable in Home Assistant
+Add to `configuration.yaml`:
+```yaml
+mcp_server:
+```
+
+Then restart Home Assistant and Claude Desktop with FHS support:
+```bash
+nix run .#claude-desktop-with-fhs
+```
+
 ## Memories
 
 - The location for my NixOS configuration is at `/home/tom/.nixos`. It's entry point is `/home/tom/.nixos/flake.nix`.
