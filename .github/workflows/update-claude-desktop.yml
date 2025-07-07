@@ -1,0 +1,89 @@
+name: Update Claude Desktop
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:     # Allow manual triggering
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@v14
+
+    - name: Setup Nix cache
+      uses: DeterminateSystems/magic-nix-cache-action@v7
+
+    - name: Install dependencies
+      run: |
+        nix profile install nixpkgs#p7zip
+        nix profile install nixpkgs#curl
+
+    - name: Check for new version
+      id: check-version
+      run: |
+        # Get current version from flake
+        CURRENT_VERSION=$(grep 'version = ' pkgs/claude-desktop.nix | cut -d'"' -f2)
+        echo "Current version: $CURRENT_VERSION"
+        
+        # Download and check latest version
+        curl -s -o /tmp/claude-installer.exe "https://storage.googleapis.com/osprey-downloads-c02f6a0d-347c-492b-a752-3e0651722e97/nest-win-x64/Claude-Setup-x64.exe"
+        LATEST_VERSION=$(7z l /tmp/claude-installer.exe | grep -i "AnthropicClaude" | head -1 | sed 's/.*AnthropicClaude-\([^-]*\)-.*/\1/')
+        echo "Latest version: $LATEST_VERSION"
+        
+        if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+          echo "New version available: $LATEST_VERSION"
+          echo "needs_update=true" >> $GITHUB_OUTPUT
+          echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          
+          # Get SHA256 hash
+          NEW_HASH=$(sha256sum /tmp/claude-installer.exe | cut -d' ' -f1)
+          echo "new_hash=$NEW_HASH" >> $GITHUB_OUTPUT
+        else
+          echo "No update needed"
+          echo "needs_update=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Update flake
+      if: steps.check-version.outputs.needs_update == 'true'
+      run: |
+        # Update version and hash in the nix file
+        sed -i 's/version = "[^"]*"/version = "${{ steps.check-version.outputs.new_version }}"/' pkgs/claude-desktop.nix
+        sed -i 's/?v=[^"]*/?v=${{ steps.check-version.outputs.new_version }}/' pkgs/claude-desktop.nix
+        sed -i 's/sha256-[^"]*"/sha256-${{ steps.check-version.outputs.new_hash | base64 -w 0 }}="/' pkgs/claude-desktop.nix
+
+    - name: Verify flake
+      if: steps.check-version.outputs.needs_update == 'true'
+      run: |
+        nix flake check
+
+    - name: Create Pull Request
+      if: steps.check-version.outputs.needs_update == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: |
+          feat: update Claude Desktop to version ${{ steps.check-version.outputs.new_version }}
+          
+          🤖 Automated update via GitHub Actions
+        title: 'Update Claude Desktop to version ${{ steps.check-version.outputs.new_version }}'
+        body: |
+          ## Summary
+          - Updates Claude Desktop from current version to ${{ steps.check-version.outputs.new_version }}
+          - SHA256 hash updated for new installer
+          - Flake check passed successfully
+          
+          ## Test plan
+          - [ ] Verify the flake builds successfully
+          - [ ] Test the updated application runs correctly
+          - [ ] Confirm all functionality works as expected
+          
+          🤖 This PR was created automatically by GitHub Actions
+        branch: update-claude-desktop-${{ steps.check-version.outputs.new_version }}
+        delete-branch: true
