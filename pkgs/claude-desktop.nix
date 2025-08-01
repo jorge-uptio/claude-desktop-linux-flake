@@ -37,7 +37,7 @@ in
     ];
 
     desktopItem = makeDesktopItem {
-      name = "Claude";
+      name = "claude-desktop";
       exec = "claude-desktop %u";
       icon = "claude";
       type = "Application";
@@ -45,7 +45,7 @@ in
       desktopName = "Claude";
       genericName = "Claude Desktop";
       comment = "AI Assistant by Anthropic";
-      startupWMClass = "Claude";
+      startupWMClass = "claude-desktop";
       startupNotify = true;
       categories = [
         "Office"
@@ -181,9 +181,7 @@ in
 
       # Install .desktop file
       mkdir -p $out/share/applications
-      install -Dm0644 {${desktopItem},$out}/share/applications/Claude.desktop
-      # Also install with original name for compatibility
-      ln -s Claude.desktop $out/share/applications/claude-desktop.desktop
+      install -Dm0644 {${desktopItem},$out}/share/applications/claude-desktop.desktop
 
       # Create wrapper
       mkdir -p $out/bin
@@ -195,7 +193,7 @@ in
         --set ELECTRON_OZONE_PLATFORM_HINT "auto" \
         --set GIO_EXTRA_MODULES "${glib-networking}/lib/gio/modules" \
         --set GDK_BACKEND "wayland,x11" \
-        --set CHROME_DESKTOP "Claude.desktop" \
+        --set CHROME_DESKTOP "claude-desktop.desktop" \
         --set-default GTK_THEME "\''${GTK_THEME:-Adwaita:dark}" \
         --set-default COLOR_SCHEME_PREFERENCE "\''${COLOR_SCHEME_PREFERENCE:-dark}" \
         --prefix XDG_DATA_DIRS : "$out/share"
