@@ -182,6 +182,8 @@ in
       # Install .desktop file
       mkdir -p $out/share/applications
       install -Dm0644 {${desktopItem},$out}/share/applications/Claude.desktop
+      # Also install with original name for compatibility
+      ln -s Claude.desktop $out/share/applications/claude-desktop.desktop
 
       # Create wrapper
       mkdir -p $out/bin
