@@ -2,7 +2,7 @@ name: Update Claude Desktop
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+    - cron: '0 20 * * *'  # Daily at 6 AM AEST (8 PM UTC)
   workflow_dispatch:     # Allow manual triggering
 
 jobs:
@@ -55,7 +55,6 @@ jobs:
       run: |
         # Update version and hash in the nix file
         sed -i 's/version = "[^"]*"/version = "${{ steps.check-version.outputs.new_version }}"/' pkgs/claude-desktop.nix
-        sed -i 's/?v=[^"]*/?v=${{ steps.check-version.outputs.new_version }}/' pkgs/claude-desktop.nix
         # Convert hex hash to base64
         NEW_HASH_B64=$(echo -n "${{ steps.check-version.outputs.new_hash }}" | xxd -r -p | base64 -w 0)
         sed -i "s|sha256-[^\"]*\"|sha256-${NEW_HASH_B64}=\"|" pkgs/claude-desktop.nix
