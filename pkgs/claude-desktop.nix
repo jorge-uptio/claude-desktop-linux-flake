@@ -15,11 +15,11 @@
   glib-networking
 }: let
   pname = "claude-desktop";
-  version = "0.13.11";
+  version = "0.13.19";
   srcExe = fetchurl {
     # NOTE: `?v=0.12.112
     url = "https://storage.googleapis.com/osprey-downloads-c02f6a0d-347c-492b-a752-3e0651722e97/nest-win-x64/Claude-Setup-x64.exe?v=${version}";
-    hash = "sha256-R37gvNevAvHx/7FfWkrRIJ19THVbV0VVD8i7JMUkiuM==";
+    hash = "sha256-DwCgTSBpK28sRCBUBBatPsaBZQ+yyLrJbAriSkf1f8E==";
   };
 in
   stdenvNoCC.mkDerivation rec {
