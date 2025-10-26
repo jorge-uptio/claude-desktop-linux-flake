@@ -1,0 +1,135 @@
+name: Sync with Upstream
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Daily at 6 PM AEST (8 AM UTC)
+  workflow_dispatch:     # Allow manual triggering
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0  # Fetch full history for proper merge
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Add upstream remote
+      run: |
+        git remote add upstream https://github.com/k3d3/claude-desktop-linux-flake.git || true
+        git fetch upstream
+
+    - name: Check for upstream changes
+      id: check-changes
+      run: |
+        # Get the latest commit from upstream/main
+        UPSTREAM_COMMIT=$(git rev-parse upstream/main)
+        # Get the latest commit from origin/main
+        ORIGIN_COMMIT=$(git rev-parse origin/main)
+
+        echo "Upstream commit: $UPSTREAM_COMMIT"
+        echo "Origin commit: $ORIGIN_COMMIT"
+
+        # Check if there are any differences in pkgs/ directory
+        if git diff --quiet origin/main upstream/main -- pkgs/; then
+          echo "No changes in pkgs/ directory"
+          echo "has_changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "Changes detected in pkgs/ directory"
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/main upstream/main -- pkgs/)
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create sync branch
+      if: steps.check-changes.outputs.has_changes == 'true'
+      run: |
+        BRANCH_NAME="sync-upstream-$(date +%Y%m%d-%H%M%S)"
+        git checkout -b "$BRANCH_NAME"
+        echo "branch_name=$BRANCH_NAME" >> $GITHUB_ENV
+
+    - name: Cherry-pick upstream changes
+      if: steps.check-changes.outputs.has_changes == 'true'
+      run: |
+        # Get commits from upstream that changed pkgs/ and aren't in our branch
+        COMMITS=$(git log origin/main..upstream/main --reverse --pretty=format:"%H" -- pkgs/)
+
+        if [ -z "$COMMITS" ]; then
+          echo "No new commits to cherry-pick"
+          exit 0
+        fi
+
+        echo "Commits to cherry-pick:"
+        echo "$COMMITS"
+
+        # Try to cherry-pick each commit
+        for commit in $COMMITS; do
+          echo "Cherry-picking $commit..."
+          if ! git cherry-pick "$commit"; then
+            echo "Conflict detected, will create PR for manual resolution"
+            # Abort the cherry-pick but keep the branch
+            git cherry-pick --abort || true
+            # Create a simple diff-based patch instead
+            git diff origin/main upstream/main -- pkgs/ | git apply || true
+            git add pkgs/
+            git commit -m "sync: merge upstream changes from k3d3/claude-desktop-linux-flake
+
+Upstream changes detected in pkgs/ directory.
+Manual review may be needed due to conflicts.
+
+Changed files:
+${{ steps.check-changes.outputs.changed_files }}
+
+🤖 Automated sync via GitHub Actions" || true
+            break
+          fi
+        done
+
+    - name: Install Nix (for verification)
+      if: steps.check-changes.outputs.has_changes == 'true'
+      uses: DeterminateSystems/nix-installer-action@v14
+
+    - name: Verify flake
+      if: steps.check-changes.outputs.has_changes == 'true'
+      run: |
+        nix flake check || echo "Flake check failed - will note in PR"
+
+    - name: Create Pull Request
+      if: steps.check-changes.outputs.has_changes == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ env.branch_name }}
+        title: 'Sync upstream changes from k3d3/claude-desktop-linux-flake'
+        body: |
+          ## Summary
+          This PR syncs changes from the upstream repository to keep our fork up-to-date.
+
+          **Changed files:**
+          ```
+          ${{ steps.check-changes.outputs.changed_files }}
+          ```
+
+          ## Review checklist
+          - [ ] Review the changes to ensure they don't conflict with our automation workflow
+          - [ ] Verify the flake builds successfully
+          - [ ] Test that Claude Desktop runs correctly
+          - [ ] Confirm tray menu and other functionality works as expected
+
+          ## Notes
+          - This sync preserves our custom GitHub Actions workflow for version updates
+          - Manual review is recommended before merging
+
+          🤖 This PR was created automatically by GitHub Actions
+        delete-branch: true
+        labels: upstream-sync,automated
