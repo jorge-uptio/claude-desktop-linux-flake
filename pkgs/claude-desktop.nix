@@ -9,17 +9,15 @@
   imagemagick,
   makeDesktopItem,
   makeWrapper,
-  wrapGAppsHook3,
   patchy-cnb,
-  perl,
-  glib-networking
+  perl
 }: let
   pname = "claude-desktop";
   version = "0.14.4";
   srcExe = fetchurl {
-    # NOTE: `?v=0.12.112
+    # NOTE: `?v=0.10.0` doesn't actually request a specific version. It's only being used here as a cache buster.
     url = "https://storage.googleapis.com/osprey-downloads-c02f6a0d-347c-492b-a752-3e0651722e97/nest-win-x64/Claude-Setup-x64.exe?v=${version}";
-    hash = "sha256-d0hI6idjoKrlyMNNup36/zigwZbWpO0kkHxXaNhmJJ8==";
+    hash = "sha256-d0hI6idjoKrlyMNNup36/zigwZbWpO0kkHxXaNhmJJ8=";
   };
 in
   stdenvNoCC.mkDerivation rec {
@@ -37,21 +35,17 @@ in
     ];
 
     desktopItem = makeDesktopItem {
-      name = "Claude";
+      name = "claude";
       exec = "claude-desktop %u";
       icon = "claude";
       type = "Application";
       terminal = false;
       desktopName = "Claude";
       genericName = "Claude Desktop";
-      comment = "AI Assistant by Anthropic";
-      startupWMClass = "Claude";
-      startupNotify = true;
+      startupWMClass = "claude";
       categories = [
         "Office"
         "Utility"
-        "Network"
-        "Chat"
       ];
       mimeTypes = ["x-scheme-handler/claude"];
     };
@@ -65,17 +59,7 @@ in
 
       # Extract installer exe, and nupkg within it
       7z x -y ${srcExe}
-      # List files to see what was extracted
-      echo "Files extracted from installer:"
-      ls -la *.nupkg || true
-      # Try to find the correct nupkg file
-      NUPKG_FILE=$(find . -maxdepth 1 -name "AnthropicClaude-*-full.nupkg" | head -1)
-      if [ -z "$NUPKG_FILE" ]; then
-        echo "ERROR: No nupkg file found!"
-        exit 1
-      fi
-      echo "Found nupkg file: $NUPKG_FILE"
-      7z x -y "$NUPKG_FILE"
+      7z x -y "AnthropicClaude-${version}-full.nupkg"
 
       # Package the icons from claude.exe
       wrestool -x -t 14 lib/net45/claude.exe -o claude.ico
@@ -181,22 +165,14 @@ in
 
       # Install .desktop file
       mkdir -p $out/share/applications
-      install -Dm0644 {${desktopItem},$out}/share/applications/Claude.desktop
+      install -Dm0644 ${desktopItem}/share/applications/claude.desktop $out/share/applications/claude.desktop
 
       # Create wrapper
       mkdir -p $out/bin
       makeWrapper ${electron}/bin/electron $out/bin/$pname \
-        --prefix LD_LIBRARY_PATH : "${lib.makeLibraryPath [glib-networking]}" \
         --add-flags "$out/lib/$pname/app.asar" \
-        --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations,UseOzonePlatform --gtk-version=4}}" \
-        --set-default NIXOS_OZONE_WL "\''${WAYLAND_DISPLAY:+1}" \
-        --set ELECTRON_OZONE_PLATFORM_HINT "auto" \
-        --set GIO_EXTRA_MODULES "${glib-networking}/lib/gio/modules" \
-        --set GDK_BACKEND "wayland,x11" \
-        --set CHROME_DESKTOP "Claude.desktop" \
-        --set-default GTK_THEME "\''${GTK_THEME:-Adwaita:dark}" \
-        --set-default COLOR_SCHEME_PREFERENCE "\''${COLOR_SCHEME_PREFERENCE:-dark}" \
-        --prefix XDG_DATA_DIRS : "$out/share"
+        --add-flags "--openDevTools" \
+        --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}"
 
       runHook postInstall
     '';
