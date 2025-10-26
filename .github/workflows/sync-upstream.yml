@@ -82,15 +82,10 @@ jobs:
             # Create a simple diff-based patch instead
             git diff origin/main upstream/main -- pkgs/ | git apply || true
             git add pkgs/
-            git commit -m "sync: merge upstream changes from k3d3/claude-desktop-linux-flake
-
-Upstream changes detected in pkgs/ directory.
-Manual review may be needed due to conflicts.
-
-Changed files:
-${{ steps.check-changes.outputs.changed_files }}
-
-🤖 Automated sync via GitHub Actions" || true
+            git commit -m "sync: merge upstream changes from k3d3/claude-desktop-linux-flake" \
+                       -m "Upstream changes detected in pkgs/ directory." \
+                       -m "Manual review may be needed due to conflicts." \
+                       -m "🤖 Automated sync via GitHub Actions" || true
             break
           fi
         done
